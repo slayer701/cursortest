@@ -106,6 +106,8 @@
     </style>
     <!-- Update Supabase script -->
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Add favicon to fix 404 error -->
+    <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>📝</text></svg>">
 </head>
 <body>
     <div class="container">
@@ -123,7 +125,6 @@
     </div>
 
     <script>
-        // Fix: Change supabaseClient to just supabase
         const supabaseUrl = 'https://pflponghldwtxsicklqz.supabase.co'
         const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmbHBvbmdobGR3dHhzaWNrbHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MzA1MDAsImV4cCI6MjA1MzUwNjUwMH0.Szw90ZlpbK0ZF6XU3nEAnZ4v_06dTMp6wTy4ABeOfac'
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
@@ -131,6 +132,42 @@
         document.addEventListener('DOMContentLoaded', async () => {
             const todoInput = document.querySelector('.todo-input');
             const todoList = document.querySelector('.todo-list');
+            
+            // Add this function to handle displaying todos
+            function addTodoToDOM(todo) {
+                const li = document.createElement('li');
+                li.dataset.id = todo.id;
+                li.innerHTML = `
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''}>
+                    <span>${todo.text}</span>
+                    <button class="delete-btn">×</button>
+                `;
+                
+                // Add event listeners
+                li.querySelector('input').addEventListener('change', async (e) => {
+                    const { error } = await supabase
+                        .from('todos')
+                        .update({ completed: e.target.checked })
+                        .eq('id', todo.id);
+                    
+                    if (error) console.error('Error updating todo:', error);
+                });
+                
+                li.querySelector('.delete-btn').addEventListener('click', async () => {
+                    const { error } = await supabase
+                        .from('todos')
+                        .delete()
+                        .eq('id', todo.id);
+                    
+                    if (error) {
+                        console.error('Error deleting todo:', error);
+                    } else {
+                        li.remove();
+                    }
+                });
+                
+                todoList.appendChild(li);
+            }
             
             // Add todo function with debug logs
             async function addTodo(text) {
