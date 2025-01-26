@@ -104,8 +104,8 @@
             color: rgba(55, 53, 47, 0.5);
         }
     </style>
-    <!-- Add Supabase -->
-    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <!-- Update these Supabase script tags -->
+    <script src="https://unpkg.com/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
@@ -123,30 +123,54 @@
     </div>
 
     <script>
-        const supabaseUrl = 'https://pflponghldwtxsicklqz.supabase.co';
-        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmbHBvbmdobGR3dHhzaWNrbHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MzA1MDAsImV4cCI6MjA1MzUwNjUwMH0.Szw90ZlpbK0ZF6XU3nEAnZ4v_06dTMp6wTy4ABeOfac';
-        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
-        
-        // Add these debug logs
-        console.log('Supabase initialized with URL:', supabaseUrl);
+        const supabaseUrl = 'https://pflponghldwtxsicklqz.supabase.co'
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmbHBvbmdobGR3dHhzaWNrbHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MzA1MDAsImV4cCI6MjA1MzUwNjUwMH0.Szw90ZlpbK0ZF6XU3nEAnZ4v_06dTMp6wTy4ABeOfac'
+        const supabase = supabaseClient.createClient(supabaseUrl, supabaseKey)
         
         document.addEventListener('DOMContentLoaded', async () => {
-            // Add this test query
-            const { data, error } = await supabase
-                .from('todos')
-                .select('*');
-            console.log('Todos data:', data);
-            console.log('Todos error:', error);
-            
             const todoInput = document.querySelector('.todo-input');
             const todoList = document.querySelector('.todo-list');
             
-            // Load initial todos
+            // Add todo function with debug logs
+            async function addTodo(text) {
+                console.log('Attempting to add todo:', text);
+                try {
+                    const { data, error } = await supabase
+                        .from('todos')
+                        .insert([{ text }])
+                        .select();
+                    
+                    console.log('Supabase response:', { data, error });
+                    
+                    if (error) {
+                        console.error('Error adding todo:', error);
+                        return;
+                    }
+                    
+                    console.log('Todo added successfully:', data);
+                    addTodoToDOM(data[0]);
+                } catch (err) {
+                    console.error('Exception:', err);
+                }
+            }
+            
+            // Handle form submission
+            todoInput.addEventListener('keypress', async (e) => {
+                if (e.key === 'Enter' && todoInput.value.trim()) {
+                    console.log('Enter pressed, value:', todoInput.value.trim());
+                    await addTodo(todoInput.value.trim());
+                    todoInput.value = '';
+                }
+            });
+            
+            // Initial load with debug logs
             async function loadTodos() {
-                const { data: todos, error } = await supabase
+                console.log('Loading todos...');
+                const { data, error } = await supabase
                     .from('todos')
-                    .select('*')
-                    .order('created_at', { ascending: true });
+                    .select('*');
+                
+                console.log('Load response:', { data, error });
                 
                 if (error) {
                     console.error('Error loading todos:', error);
@@ -154,93 +178,9 @@
                 }
                 
                 todoList.innerHTML = '';
-                todos.forEach(todo => {
-                    addTodoToDOM(todo);
-                });
+                data.forEach(todo => addTodoToDOM(todo));
             }
-
-            // Add new todo
-            async function addTodo(text) {
-                const { data: todo, error } = await supabase
-                    .from('todos')
-                    .insert([{ text }])
-                    .select()
-                    .single();
-                
-                if (error) {
-                    console.error('Error adding todo:', error);
-                    return;
-                }
-                
-                addTodoToDOM(todo);
-            }
-
-            // Toggle todo completion
-            async function toggleTodo(id, completed) {
-                const { error } = await supabase
-                    .from('todos')
-                    .update({ completed })
-                    .eq('id', id);
-                
-                if (error) {
-                    console.error('Error updating todo:', error);
-                }
-            }
-
-            // Delete todo
-            async function deleteTodo(id) {
-                const { error } = await supabase
-                    .from('todos')
-                    .delete()
-                    .eq('id', id);
-                
-                if (error) {
-                    console.error('Error deleting todo:', error);
-                }
-            }
-
-            function addTodoToDOM(todo) {
-                const li = document.createElement('li');
-                li.dataset.id = todo.id;
-                li.innerHTML = `
-                    <input type="checkbox" ${todo.completed ? 'checked' : ''}>
-                    <span>${todo.text}</span>
-                    <button class="delete-btn">×</button>
-                `;
-                
-                li.querySelector('input').addEventListener('change', (e) => {
-                    toggleTodo(todo.id, e.target.checked);
-                });
-                
-                li.querySelector('.delete-btn').addEventListener('click', () => {
-                    deleteTodo(todo.id);
-                    li.remove();
-                });
-                
-                todoList.appendChild(li);
-            }
-
-            // Handle form submission
-            todoInput.addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter' && todoInput.value.trim()) {
-                    await addTodo(todoInput.value.trim());
-                    todoInput.value = '';
-                }
-            });
-
-            // Subscribe to real-time changes
-            const subscription = supabase
-                .channel('todos')
-                .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, payload => {
-                    if (payload.eventType === 'INSERT') {
-                        addTodoToDOM(payload.new);
-                    } else if (payload.eventType === 'DELETE') {
-                        const li = todoList.querySelector(`[data-id="${payload.old.id}"]`);
-                        if (li) li.remove();
-                    }
-                })
-                .subscribe();
-
+            
             // Load initial todos
             loadTodos();
         });
