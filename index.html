@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<!-- 
+    🏠 Family Todo List 🏠
+    📝 A beautiful and simple way to organize your family's tasks 
+    ❤️ Created with love and care ✨
+-->
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Family Todo List</title>
+    <style>
+        body {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #ffffff;
+            color: rgb(55, 53, 47);
+            line-height: 1.5;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 3rem 2rem;
+        }
+        .header {
+            margin-bottom: 3rem;
+        }
+        .header h1 {
+            font-weight: 700;
+            font-size: 2.5rem;
+            margin: 0;
+            color: rgb(55, 53, 47);
+        }
+        .todo-input {
+            width: 100%;
+            padding: 0.8rem 1rem;
+            font-size: 1rem;
+            border: 1px solid rgba(55, 53, 47, 0.16);
+            border-radius: 4px;
+            background-color: transparent;
+            margin-bottom: 1.5rem;
+            transition: border 0.2s ease-in-out;
+        }
+        .todo-input:focus {
+            outline: none;
+            border-color: rgb(55, 53, 47);
+        }
+        .todo-list {
+            list-style: none;
+            padding: 0;
+        }
+        .todo-item {
+            display: flex;
+            align-items: center;
+            padding: 0.8rem;
+            margin-bottom: 0.5rem;
+            background-color: transparent;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+        }
+        .todo-item:hover {
+            background-color: rgba(55, 53, 47, 0.04);
+        }
+        .todo-checkbox {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border: 2px solid rgba(55, 53, 47, 0.35);
+            border-radius: 3px;
+            margin-right: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .todo-checkbox:checked {
+            background-color: rgb(55, 53, 47);
+            border-color: rgb(55, 53, 47);
+            background-image: url("data:image/svg+xml,%3Csvg width='10' height='8' viewBox='0 0 10 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 4L3.5 6.5L9 1' stroke='white' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+        .todo-text {
+            flex-grow: 1;
+            font-size: 1rem;
+            color: rgb(55, 53, 47);
+            display: flex;
+            align-items: center;
+        }
+        .todo-icon {
+            margin-right: 0.5rem;
+            font-size: 1.2rem;
+        }
+        .todo-delete {
+            color: rgba(55, 53, 47, 0.4);
+            cursor: pointer;
+            padding: 0.5rem;
+            font-size: 1.2rem;
+            transition: color 0.2s;
+        }
+        .todo-delete:hover {
+            color: rgb(235, 87, 87);
+        }
+        .completed {
+            text-decoration: line-through;
+            color: rgba(55, 53, 47, 0.5);
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Our Family Todo List</h1>
+        </div>
+        <input type="text" class="todo-input" placeholder="Add a new todo... (Press Enter to add)">
+        <ul class="todo-list"></ul>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const todoInput = document.querySelector('.todo-input');
+            const todoList = document.querySelector('.todo-list');
+            let todos = JSON.parse(localStorage.getItem('todos')) || [];
+
+            function getTaskIcon(text) {
+                const lowerText = text.toLowerCase();
+                if (lowerText.includes('clean') || lowerText.includes('wash')) return '🧹';
+                if (lowerText.includes('cook') || lowerText.includes('food') || lowerText.includes('eat')) return '🍳';
+                if (lowerText.includes('shop') || lowerText.includes('buy')) return '🛒';
+                if (lowerText.includes('homework') || lowerText.includes('study')) return '📚';
+                if (lowerText.includes('exercise') || lowerText.includes('workout')) return '🏃';
+                if (lowerText.includes('call') || lowerText.includes('phone')) return '📞';
+                if (lowerText.includes('doctor') || lowerText.includes('health')) return '🏥';
+                if (lowerText.includes('play') || lowerText.includes('game')) return '🎮';
+                return '📝'; // default icon
+            }
+
+            function saveTodos() {
+                localStorage.setItem('todos', JSON.stringify(todos));
+            }
+
+            function renderTodos() {
+                todoList.innerHTML = '';
+                todos.forEach((todo, index) => {
+                    const li = document.createElement('li');
+                    li.className = 'todo-item';
+                    li.innerHTML = `
+                        <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''}>
+                        <span class="todo-text ${todo.completed ? 'completed' : ''}">
+                            <span class="todo-icon">${getTaskIcon(todo.text)}</span>
+                            ${todo.text}
+                        </span>
+                        <span class="todo-delete">×</span>
+                    `;
+
+                    li.querySelector('.todo-checkbox').addEventListener('change', (e) => {
+                        todos[index].completed = e.target.checked;
+                        saveTodos();
+                        renderTodos();
+                    });
+
+                    li.querySelector('.todo-delete').addEventListener('click', () => {
+                        todos.splice(index, 1);
+                        saveTodos();
+                        renderTodos();
+                    });
+
+                    todoList.appendChild(li);
+                });
+            }
+            todoInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && todoInput.value.trim()) {
+                    todos.push({
+                        text: todoInput.value.trim(),
+                        completed: false
+                    });
+                    todoInput.value = '';
+                    saveTodos();
+                    renderTodos();
+                }
+            });
+
+            renderTodos();
+        });
+    </script>
+</body>
+</html>
+
