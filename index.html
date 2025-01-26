@@ -33,13 +33,23 @@
             color: rgb(55, 53, 47);
         }
         
+        .todo-input-container {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+        
         .todo-input {
-            width: 100%;
+            flex-grow: 1;
+            margin-bottom: 0; /* Override previous margin */
+        }
+        
+        .person-input {
+            width: 120px;
             padding: 12px;
             font-size: 16px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 20px;
             box-sizing: border-box;
         }
         
@@ -83,12 +93,24 @@
         .delete-btn:hover {
             color: #ff0000;
         }
+        
+        /* Style for person tag */
+        .person-tag {
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-size: 14px;
+            margin-right: 12px;
+            color: white;
+        }
     </style>
 </head>
 <body>
     <div class="container">
         <h1>Family Todo List</h1>
-        <input type="text" class="todo-input" placeholder="Add a new task..." id="todo-input" name="todo-input">
+        <div class="todo-input-container">
+            <input type="text" class="todo-input" placeholder="Add a new task..." id="todo-input" name="todo-input">
+            <input type="text" class="person-input" placeholder="Assigned to" id="person-input" name="person-input">
+        </div>
         <ul class="todo-list"></ul>
     </div>
     
@@ -100,19 +122,36 @@
         
         document.addEventListener('DOMContentLoaded', async () => {
             const todoInput = document.querySelector('.todo-input');
+            const personInput = document.querySelector('.person-input');
             const todoList = document.querySelector('.todo-list');
             
-            // Add this function to handle displaying todos
+            // Color generator for names
+            const colorMap = new Map();
+            const colors = [
+                '#FF6B6B', '#4ECDC4', '#45B7D1', '#96CEB4', 
+                '#FFEEAD', '#D4A5A5', '#9B59B6', '#3498DB'
+            ];
+            let colorIndex = 0;
+            
+            function getColorForPerson(person) {
+                if (!colorMap.has(person)) {
+                    colorMap.set(person, colors[colorIndex % colors.length]);
+                    colorIndex++;
+                }
+                return colorMap.get(person);
+            }
+            
             function addTodoToDOM(todo) {
                 const li = document.createElement('li');
                 li.dataset.id = todo.id;
+                const personColor = getColorForPerson(todo.person);
                 li.innerHTML = `
                     <input type="checkbox" ${todo.completed ? 'checked' : ''}>
+                    <span class="person-tag" style="background-color: ${personColor}">${todo.person}</span>
                     <span>${todo.text}</span>
                     <button class="delete-btn">×</button>
                 `;
                 
-                // Add event listeners
                 li.querySelector('input').addEventListener('change', async (e) => {
                     const { error } = await supabase
                         .from('todos')
@@ -138,13 +177,12 @@
                 todoList.appendChild(li);
             }
             
-            // Add todo function with debug logs
-            async function addTodo(text) {
-                console.log('Attempting to add todo:', text);
+            async function addTodo(text, person) {
+                console.log('Attempting to add todo:', text, 'for person:', person);
                 try {
                     const { data, error } = await supabase
                         .from('todos')
-                        .insert([{ text }])
+                        .insert([{ text, person }])
                         .select();
                     
                     console.log('Supabase response:', { data, error });
@@ -161,16 +199,14 @@
                 }
             }
             
-            // Handle form submission
             todoInput.addEventListener('keypress', async (e) => {
-                if (e.key === 'Enter' && todoInput.value.trim()) {
-                    console.log('Enter pressed, value:', todoInput.value.trim());
-                    await addTodo(todoInput.value.trim());
+                if (e.key === 'Enter' && todoInput.value.trim() && personInput.value.trim()) {
+                    await addTodo(todoInput.value.trim(), personInput.value.trim());
                     todoInput.value = '';
+                    personInput.value = '';
                 }
             });
             
-            // Initial load with debug logs
             async function loadTodos() {
                 console.log('Loading todos...');
                 const { data, error } = await supabase
@@ -188,7 +224,6 @@
                 data.forEach(todo => addTodoToDOM(todo));
             }
             
-            // Load initial todos
             loadTodos();
         });
     </script>
