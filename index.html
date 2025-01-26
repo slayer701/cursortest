@@ -104,83 +104,146 @@
             color: rgba(55, 53, 47, 0.5);
         }
     </style>
+    <!-- Add Supabase -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
     <div class="container">
         <div class="header">
             <h1>Our Family Todo List</h1>
         </div>
-        <input type="text" class="todo-input" placeholder="Add a new todo... (Press Enter to add)">
+        <input 
+            type="text" 
+            class="todo-input" 
+            id="todo-input" 
+            name="todo-input" 
+            placeholder="Add a new task..."
+        >
         <ul class="todo-list"></ul>
     </div>
 
     <script>
-        document.addEventListener('DOMContentLoaded', () => {
+        const supabaseUrl = 'https://pflponghldwtxsicklqz.supabase.co';
+        const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InBmbHBvbmdobGR3dHhzaWNrbHF6Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Mzc5MzA1MDAsImV4cCI6MjA1MzUwNjUwMH0.Szw90ZlpbK0ZF6XU3nEAnZ4v_06dTMp6wTy4ABeOfac';
+        const supabase = supabase.createClient(supabaseUrl, supabaseKey);
+        
+        // Add these debug logs
+        console.log('Supabase initialized with URL:', supabaseUrl);
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Add this test query
+            const { data, error } = await supabase
+                .from('todos')
+                .select('*');
+            console.log('Todos data:', data);
+            console.log('Todos error:', error);
+            
             const todoInput = document.querySelector('.todo-input');
             const todoList = document.querySelector('.todo-list');
-            let todos = JSON.parse(localStorage.getItem('todos')) || [];
-
-            function getTaskIcon(text) {
-                const lowerText = text.toLowerCase();
-                if (lowerText.includes('clean') || lowerText.includes('wash')) return '🧹';
-                if (lowerText.includes('cook') || lowerText.includes('food') || lowerText.includes('eat')) return '🍳';
-                if (lowerText.includes('shop') || lowerText.includes('buy')) return '🛒';
-                if (lowerText.includes('homework') || lowerText.includes('study')) return '📚';
-                if (lowerText.includes('exercise') || lowerText.includes('workout')) return '🏃';
-                if (lowerText.includes('call') || lowerText.includes('phone')) return '📞';
-                if (lowerText.includes('doctor') || lowerText.includes('health')) return '🏥';
-                if (lowerText.includes('play') || lowerText.includes('game')) return '🎮';
-                return '📝'; // default icon
-            }
-
-            function saveTodos() {
-                localStorage.setItem('todos', JSON.stringify(todos));
-            }
-
-            function renderTodos() {
+            
+            // Load initial todos
+            async function loadTodos() {
+                const { data: todos, error } = await supabase
+                    .from('todos')
+                    .select('*')
+                    .order('created_at', { ascending: true });
+                
+                if (error) {
+                    console.error('Error loading todos:', error);
+                    return;
+                }
+                
                 todoList.innerHTML = '';
-                todos.forEach((todo, index) => {
-                    const li = document.createElement('li');
-                    li.className = 'todo-item';
-                    li.innerHTML = `
-                        <input type="checkbox" class="todo-checkbox" ${todo.completed ? 'checked' : ''}>
-                        <span class="todo-text ${todo.completed ? 'completed' : ''}">
-                            <span class="todo-icon">${getTaskIcon(todo.text)}</span>
-                            ${todo.text}
-                        </span>
-                        <span class="todo-delete">×</span>
-                    `;
-
-                    li.querySelector('.todo-checkbox').addEventListener('change', (e) => {
-                        todos[index].completed = e.target.checked;
-                        saveTodos();
-                        renderTodos();
-                    });
-
-                    li.querySelector('.todo-delete').addEventListener('click', () => {
-                        todos.splice(index, 1);
-                        saveTodos();
-                        renderTodos();
-                    });
-
-                    todoList.appendChild(li);
+                todos.forEach(todo => {
+                    addTodoToDOM(todo);
                 });
             }
-            todoInput.addEventListener('keypress', (e) => {
+
+            // Add new todo
+            async function addTodo(text) {
+                const { data: todo, error } = await supabase
+                    .from('todos')
+                    .insert([{ text }])
+                    .select()
+                    .single();
+                
+                if (error) {
+                    console.error('Error adding todo:', error);
+                    return;
+                }
+                
+                addTodoToDOM(todo);
+            }
+
+            // Toggle todo completion
+            async function toggleTodo(id, completed) {
+                const { error } = await supabase
+                    .from('todos')
+                    .update({ completed })
+                    .eq('id', id);
+                
+                if (error) {
+                    console.error('Error updating todo:', error);
+                }
+            }
+
+            // Delete todo
+            async function deleteTodo(id) {
+                const { error } = await supabase
+                    .from('todos')
+                    .delete()
+                    .eq('id', id);
+                
+                if (error) {
+                    console.error('Error deleting todo:', error);
+                }
+            }
+
+            function addTodoToDOM(todo) {
+                const li = document.createElement('li');
+                li.dataset.id = todo.id;
+                li.innerHTML = `
+                    <input type="checkbox" ${todo.completed ? 'checked' : ''}>
+                    <span>${todo.text}</span>
+                    <button class="delete-btn">×</button>
+                `;
+                
+                li.querySelector('input').addEventListener('change', (e) => {
+                    toggleTodo(todo.id, e.target.checked);
+                });
+                
+                li.querySelector('.delete-btn').addEventListener('click', () => {
+                    deleteTodo(todo.id);
+                    li.remove();
+                });
+                
+                todoList.appendChild(li);
+            }
+
+            // Handle form submission
+            todoInput.addEventListener('keypress', async (e) => {
                 if (e.key === 'Enter' && todoInput.value.trim()) {
-                    todos.push({
-                        text: todoInput.value.trim(),
-                        completed: false
-                    });
+                    await addTodo(todoInput.value.trim());
                     todoInput.value = '';
-                    saveTodos();
-                    renderTodos();
                 }
             });
 
-            renderTodos();
+            // Subscribe to real-time changes
+            const subscription = supabase
+                .channel('todos')
+                .on('postgres_changes', { event: '*', schema: 'public', table: 'todos' }, payload => {
+                    if (payload.eventType === 'INSERT') {
+                        addTodoToDOM(payload.new);
+                    } else if (payload.eventType === 'DELETE') {
+                        const li = todoList.querySelector(`[data-id="${payload.old.id}"]`);
+                        if (li) li.remove();
+                    }
+                })
+                .subscribe();
+
+            // Load initial todos
+            loadTodos();
         });
     </script>
 </body>
 </html>
-
