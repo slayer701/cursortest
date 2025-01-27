@@ -102,16 +102,73 @@
             margin-right: 12px;
             color: white;
         }
+        
+        .auth-container {
+            text-align: center;
+            margin: 40px 0;
+        }
+        
+        .login-button {
+            background-color: #4285f4;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .login-button:hover {
+            background-color: #357abd;
+        }
+        
+        .user-info {
+            text-align: right;
+            margin-bottom: 20px;
+        }
+        
+        .logout-button {
+            background-color: #ff5555;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+            margin-left: 10px;
+        }
+        
+        .app-container {
+            display: none; /* Hidden by default */
+        }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>Family Todo List</h1>
-        <div class="todo-input-container">
-            <input type="text" class="todo-input" placeholder="Add a new task..." id="todo-input" name="todo-input">
-            <input type="text" class="person-input" placeholder="Assigned to" id="person-input" name="person-input">
+        <!-- Add auth container -->
+        <div class="auth-container">
+            <button class="login-button" id="login-button">
+                Sign in with Google
+            </button>
         </div>
-        <ul class="todo-list"></ul>
+        
+        <!-- Wrap existing content in app container -->
+        <div class="app-container" id="app">
+            <div class="user-info">
+                <span id="user-email"></span>
+                <button class="logout-button" id="logout-button">Logout</button>
+            </div>
+            
+            <h1>Family Todo List</h1>
+            <div class="todo-input-container">
+                <input type="text" class="todo-input" placeholder="Add a new task..." id="todo-input" name="todo-input">
+                <input type="text" class="person-input" placeholder="Assigned to" id="person-input" name="person-input">
+            </div>
+            <ul class="todo-list"></ul>
+        </div>
     </div>
     
     <!-- Your existing Supabase script -->
@@ -121,6 +178,59 @@
         const supabase = window.supabase.createClient(supabaseUrl, supabaseKey)
         
         document.addEventListener('DOMContentLoaded', async () => {
+            const loginButton = document.getElementById('login-button');
+            const logoutButton = document.getElementById('logout-button');
+            const appContainer = document.getElementById('app');
+            const authContainer = document.querySelector('.auth-container');
+            const userEmail = document.getElementById('user-email');
+            
+            // Check if user is already logged in
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+                showApp(user);
+            }
+            
+            // Login with Google
+            loginButton.addEventListener('click', async () => {
+                const { data, error } = await supabase.auth.signInWithOAuth({
+                    provider: 'google'
+                });
+                
+                if (error) console.error('Error:', error.message);
+            });
+            
+            // Logout
+            logoutButton.addEventListener('click', async () => {
+                const { error } = await supabase.auth.signOut();
+                if (error) {
+                    console.error('Error:', error.message);
+                } else {
+                    hideApp();
+                }
+            });
+            
+            // Auth state change listener
+            supabase.auth.onAuthStateChange((event, session) => {
+                if (event === 'SIGNED_IN' && session) {
+                    showApp(session.user);
+                } else if (event === 'SIGNED_OUT') {
+                    hideApp();
+                }
+            });
+            
+            function showApp(user) {
+                authContainer.style.display = 'none';
+                appContainer.style.display = 'block';
+                userEmail.textContent = user.email;
+                loadTodos(); // Load todos for logged-in user
+            }
+            
+            function hideApp() {
+                authContainer.style.display = 'block';
+                appContainer.style.display = 'none';
+                userEmail.textContent = '';
+            }
+            
             const todoInput = document.querySelector('.todo-input');
             const personInput = document.querySelector('.person-input');
             const todoList = document.querySelector('.todo-list');
